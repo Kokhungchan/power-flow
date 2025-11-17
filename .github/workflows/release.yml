@@ -28,34 +28,22 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      # --- LINT & TEST ---
-      - name: Run Lint Check (and Fix)
+     # --- LINT & TEST ---
+      - name: 🧹 Run Lint Check (and Fix)
         run: npm run lint -- --fix
-        
-      - name: Run Lint Check (and Fix) # <--- If you accidentally duplicated the name
-        run: npm run lint
-  
+        run: npm run lint 
+
+      # --- BUILD STEP: RUN ROLLUP ---
+      - name: 🔨 Build Card and Inline Assets
+        run: npm run build # This runs Rollup
+
       # --- CREATE GITHUB RELEASE ---
-      - name: Create GitHub Release
+      - name: 🏷️ Create GitHub Release
         id: create_release
         uses: softprops/action-gh-release@v1
         with:
-          # Uses the Git tag as the release name (e.g., v1.0.0)
-          tag_name: ${{ github.ref }}
-          # Uses the tag name for the release title
-          name: Release ${{ github.ref }}
-          # Include a changelog or simple placeholder text
-          body: |
-            ## New Features and Fixes
-            See the commit history for details.
-            
-            **This release is compatible with HACS.**
-          # This is the crucial part for HACS: attach the final JS file
-          # Replace 'power-flow-card.js' with your actual bundled file name
+          # Files now points to the output of the build step!
           files: |
-            dist/power-flow-card.js 
-            assets/*
-            
-            
+            dist/power-flow-card.js
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
