@@ -24,28 +24,8 @@ jobs:
       - name: 📦 Create Release and Upload power-flow-card.js
         uses: softprops/action-gh-release@v2
         with:
-          node-version: 20
-          cache: 'npm'
-          
-      - name: Install Dependencies
-        run: npm ci
-
-     # --- LINT & TEST ---
-      - name: 🧹 Run Lint Check (and Fix)
-        run: npm run lint -- --fix
-        run: npm run lint 
-
-      # --- BUILD STEP: RUN ROLLUP ---
-      - name: 🔨 Build Card and Inline Assets
-        run: npm run build # This runs Rollup
-
-      # --- CREATE GITHUB RELEASE ---
-      - name: 🏷️ Create GitHub Release
-        id: create_release
-        uses: softprops/action-gh-release@v1
-        with:
-          # Files now points to the output of the build step!
+          # The tag name (e.g., v1.0.0) is used as the release name automatically.
+          # The release notes can be generated from your commit messages, 
+          # but for HACS, attaching the file is the key requirement.
           files: |
-            dist/power-flow-card.js
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            power-flow-card.js
