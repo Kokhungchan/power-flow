@@ -1,0 +1,65 @@
+name: Release Custom Card
+
+on:
+  # Triggers the workflow when a new tag is pushed (e.g., git push --tags)
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+' # Matches tags like v1.0.0, v2.5.3
+
+jobs:
+  release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    
+    # Optional: Add permissions if your project needs to write to the repository for assets
+    permissions:
+      contents: write
+      
+    steps:
+      - name: ⬇️ Checkout Repository
+        uses: actions/checkout@v4
+        
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          
+      - name: 📦 Install Dependencies
+        run: npm ci
+
+      # --- LINT & TEST ---
+      - name: 🧹 Run Lint Check (and Fix)
+        run: npm run lint -- --fix
+        
+      - name: 🧹 Run Lint Check (and Fix) # <--- If you accidentally duplicated the name
+        run: npm run lint
+
+      # --- BUILD STEP (if your card needs bundling, e.g., with Webpack/Rollup) ---
+      # If your card is just a single JS file, you might skip this step.
+      - name: 🔨 Build Card (if applicable)
+        run: npm run build
+        
+      # --- CREATE GITHUB RELEASE ---
+      - name: 🏷️ Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          # Uses the Git tag as the release name (e.g., v1.0.0)
+          tag_name: ${{ github.ref }}
+          # Uses the tag name for the release title
+          name: Release ${{ github.ref }}
+          # Include a changelog or simple placeholder text
+          body: |
+            ## New Features and Fixes
+            See the commit history for details.
+            
+            **This release is compatible with HACS.**
+          # This is the crucial part for HACS: attach the final JS file
+          # Replace 'power-flow-card.js' with your actual bundled file name
+          files: |
+            dist/power-flow-card.js # Your main card file
+            assets/* # This uploads all files inside the assets/ folder
+            
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
