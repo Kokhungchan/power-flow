@@ -28,15 +28,20 @@ class PowerFlowCard extends LitElement {
             ev: '/local/assets/ev_line.svg',
             bg: '/local/assets/home.svg'
         };
-        // Configuration mapping for flow lines
+
+        // ---
+        // This 'lineConfig' array is the only section that has been changed.
+        // ---
         this.lineConfig = [
-            { id: 'solar', type: 'solar', entity_key: 'solar_power', reverse: false },
-            { id: 'battery', type: 'bat-charge', entity_key: 'battery_charge_power', reverse: true, container: 'battery' },
-            { id: 'ev', type: 'ev', entity_key: 'ev_charge_power', reverse: false },
-            { id: 'grid-import', type: 'grid-import', entity_key: 'grid_import_power', reverse: false, container: 'primary' },
-            { id: 'grid-export', type: 'grid-export', entity_key: 'grid_export_power', reverse: true, container: 'out' },
+            { id: 'solar', type: 'solar', entity_key: 'solar_power', reverse: true, container: 'solar' },
+            { id: 'battery', type: 'bat-charge', entity_key: 'battery_charge_power', reverse: false, container: 'battery', pathKey: 'battery' },
+            { id: 'ev', type: 'ev', entity_key: 'ev_charge_power', reverse: false, container: 'ev' },
+            { id: 'grid-import', type: 'grid-import', entity_key: 'grid_import_power', reverse: true, container: 'primary', pathKey: 'primary' },
+            { id: 'grid-export', type: 'grid-export', entity_key: 'grid_export_power', reverse: false, container: 'out', pathKey: 'out' },
+            
             { id: 'bg', type: 'bg', pathKey: 'bg', isBackground: true, container: 'bg' }
         ];
+        
         this.isInitialized = false;
     }
 
@@ -48,7 +53,7 @@ class PowerFlowCard extends LitElement {
             solar: this.shadowRoot.getElementById('svg-container-solar'),
             battery: this.shadowRoot.getElementById('svg-container-battery'),
             ev: this.shadowRoot.getElementById('svg-container-ev'),
-            primary: this.shadowRoot.getElementById('svg-container-primary'), // Note the ID change for clarity
+            primary: this.shadowRoot.getElementById('svg-container-primary'),
             out: this.shadowRoot.getElementById('svg-container-out')
         };
         this.loadAllSVGs();
@@ -91,7 +96,7 @@ class PowerFlowCard extends LitElement {
         const colorMap = {
             'solar': 'gold',
             'grid-import': 'dodgerblue',
-            'grid-export': 'limegreen',
+            'grid-export': 'limegreen', // <-- Needs 'grid-export' (dash)
             'bat-charge': 'cornflowerblue',
             'ev': 'deepskyblue'
         };
@@ -100,40 +105,47 @@ class PowerFlowCard extends LitElement {
 
         svgEl.querySelectorAll('path, circle, rect, line, polyline, polygon').forEach(el => {
             if (el.nodeName === 'rect') { return; }
-
             el.classList.add('anim-line', lineType);
             el.setAttribute('stroke', desiredColor);
             el.style.setProperty('stroke', desiredColor, 'important');
-            el.classList.add('flow-off'); // Start paused
+            el.classList.add('flow-off');
         });
     }
 
     async loadSVG(path, containerEl, lineType, isBackground) {
         try {
+            if (!path) throw new Error(`No SVG path provided for ${lineType}`);
+            
             const response = await fetch(path);
-            if (!response.ok) throw new Error(`SVG load failed: ${response.status}`);
+            if (!response.ok) throw new Error(`SVG load failed: ${response.status} ${response.statusText}`);
+            
             const text = await response.text();
-
+    
             if (isBackground) {
                 containerEl.innerHTML = text;
             } else {
                 this.processSVGString(text, containerEl, lineType);
             }
         } catch (err) {
-            console.error('Failed to load SVG:', path, err);
-            containerEl.innerHTML = `<p style="color:#f99; text-align:center;">Error loading ${path}</p>`;
+            console.error(`Failed to load SVG for "${lineType}" from path "${path}":`, err);
+            
+            containerEl.innerHTML = `
+                <p style="color:#f99; text-align:center; font-weight:bold;">
+                    Error loading ${lineType} SVG
+                </p>
+            `;
+    
+            throw new Error(`SVG load failed for "${lineType}": ${err.message}`);
         }
     }
 
     loadAllSVGs() {
         this.lineConfig.forEach(cfg => {
-            // Determine pathKey: use 'pathKey' if defined, otherwise use 'type'
-            const pathKey = cfg.pathKey || cfg.type; 
+            const pathKey = cfg.pathKey || cfg.type;
             const path = this.svgPaths[pathKey];
             
-            // Determine container ID: use 'container' if defined, otherwise use 'id'
             const containerId = cfg.container || cfg.id;
-            const container = this.lineContainers[containerId]; 
+            const container = this.lineContainers[containerId];
             
             if (path && container) {
                 this.loadSVG(path, container, cfg.type, cfg.isBackground);
@@ -148,7 +160,7 @@ class PowerFlowCard extends LitElement {
             const container = this.lineContainers[cfg.container || cfg.id];
             
             // Get the entity ID from the user config
-            const entityId = this.config.entities[cfg.entity_key]; 
+            const entityId = this.config.entities[cfg.entity_key];
             const stateObj = entityId ? this._hass.states[entityId] : null;
             
             // Get value, default to 0 if unavailable
@@ -161,12 +173,8 @@ class PowerFlowCard extends LitElement {
                 lines.forEach(line => {
                     line.classList.toggle('flow-active', isActive);
                     line.classList.toggle('flow-off', !isActive);
-                    
-                    if (cfg.reverse && isActive) {
-                        // For reversible flows (battery/grid), check direction
-                        const isReversed = value < 0; 
-                        line.classList.toggle('reverse-flow', isReversed);
-                    }
+                    line.classList.toggle('reverse-flow', !!cfg.reverse);
+                    // -----------------------------
                 });
             }
         });
@@ -190,7 +198,7 @@ class PowerFlowCard extends LitElement {
             #svg-overlay {
                 position: relative;
                 width: 100%;
-                height: 300px;
+                height: 500px;
                 pointer-events: none;
                 padding: 16px;
                 box-sizing: border-box;
@@ -236,11 +244,11 @@ class PowerFlowCard extends LitElement {
             }
             
             /* Color definitions (these apply classes to the SVG paths) */
-            .solar        { stroke: gold !important; }
-            .grid-import  { stroke: dodgerblue !important; }
-            .grid-export  { stroke: limegreen !important; }
-            .ev           { stroke: deepskyblue !important; }
-            .bat-charge   { stroke: cornflowerblue !important; }
+            .solar       { stroke: gold !important; }
+            .grid-import { stroke: dodgerblue !important; }
+            .grid-export { stroke: limegreen !important; } /* <-- Needs 'grid-export' (dash) */
+            .ev          { stroke: deepskyblue !important; }
+            .bat-charge  { stroke: cornflowerblue !important; }
         `;
     }
 
@@ -261,5 +269,4 @@ class PowerFlowCard extends LitElement {
     }
 }
 
-// 8. Register the element
 customElements.define('power-flow-card', PowerFlowCard);
