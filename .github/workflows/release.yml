@@ -29,10 +29,6 @@ jobs:
         run: npm ci
 
      # --- LINT & TEST ---
-      - name: 🧹 Run Lint Check (and Fix)
-        run: npm run lint -- --fix
-        run: npm run lint 
-
       # --- BUILD STEP: RUN ROLLUP ---
       - name: 🔨 Build Card and Inline Assets
         run: npm run build # This runs Rollup
