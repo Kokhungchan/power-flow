@@ -194,6 +194,9 @@ class PowerFlowCard extends LitElement {
   }
 
   updateFlow() {
+    const threshold = (this.config && this.config.threshold != null)
+      ? (Number(this.config.threshold) || 10)
+      : 10;
     this.lineConfig
       .filter((c) => c.entity_key)
       .forEach((cfg) => {
@@ -231,7 +234,7 @@ class PowerFlowCard extends LitElement {
         }
 
         const lines = container.querySelectorAll(".anim-line");
-        const isActive = Math.abs(value) > (this.threshold ?? 10);
+        const isActive = Math.abs(value) > threshold;
 
         lines.forEach((line) => {
           line.classList.toggle("flow-active", isActive);
