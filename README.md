@@ -20,16 +20,24 @@ Provides a clean, animated interface that makes it easy to understand how power 
 
 ## Configuration 
 
+Usage example in yaml and UI:
+
+```yaml
 type: custom:power-flow-card
 name: Home Energy Flow
+threshold: 10
 entities:
-  solar_power: sensor.solar
-  grid_import_power: sensor.grid
-  ev_charge_power: sensor.ev
-  grid_export_power: sensor.grid_export
-  battery_charge_power: sensor.bat_charge
-  battery_discharge_power: sensor.bat_discharge
 
-## Credit
+  solar_power: sensor.sn_3015027172_pv_power
+  grid_import_power: sensor.sunny_home_manager_2_metering_power_absorbed
+  grid_export_power: sensor.sunny_home_manager_2_metering_power_supplied
+  ev_charge_power: sensor.evcc_garage_charge_power
+  battery_charge_power: sensor.sn_3017444296_battery_power_charge_total
+  battery_discharge_power: sensor.sn_3017444296_battery_power_discharge_total
+```
+
+Configuration editor screenshot:
+
+![](./docs/config.png)
 
 The Illustrator Base for the SVGs was provided by [ForsakenConversation](https://www.reddit.com/user/ForsakenConversation/)
