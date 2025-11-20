@@ -29,3 +29,7 @@ entities:
   grid_export_power: sensor.grid_export
   battery_charge_power: sensor.bat_charge
   battery_discharge_power: sensor.bat_discharge
+
+## Credit
+
+The Illustrator Base for the SVGs was provided by [ForsakenConversation](https://www.reddit.com/user/ForsakenConversation/)
