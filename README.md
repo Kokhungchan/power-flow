@@ -2,7 +2,7 @@
 
 <!-- Place your demo MP4 at ./docs/demo.mp4 -->
 <video controls autoplay loop muted playsinline width="720">
-  <source src=".src/assets/example.mp4" type="video/mp4">
+  <source src="./src/assets/example.mp4" type="video/mp4">
   Your browser does not support the video tag. Download the demo: <a href="./docs/demo.mp4">demo.mp4</a>
 </video>
 
@@ -44,6 +44,6 @@ entities:
 
 Configuration editor screenshot:
 
-![](.src/assets/config.png)
+![](./src/assets/config.png)
 
 The Illustrator Base for the SVGs was provided by [ForsakenConversation](https://www.reddit.com/user/ForsakenConversation/)
