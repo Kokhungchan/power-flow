@@ -204,7 +204,6 @@ class PowerFlowCard extends LitElement {
         let value = 0;
         let reverse = !!cfg.reverse;
 
-        // Special handling for battery: check both charge and discharge
         if (cfg.type === "bat-charge") {
           const chargeEntity = this.config.entities["battery_charge_power"];
           const dischargeEntity = this.config.entities["battery_discharge_power"];
@@ -225,14 +224,14 @@ class PowerFlowCard extends LitElement {
             value = 0;
           }
         } else {
-          // default behavior for other lines
+
           const entityId = this.config.entities[cfg.entity_key];
           const stateObj = entityId ? this._hass.states[entityId] : null;
           value = stateObj ? parseFloat(stateObj.state) : 0;
         }
 
         const lines = container.querySelectorAll(".anim-line");
-        const isActive = Math.abs(value) > 10; // 10W threshold
+        const isActive = Math.abs(value) > (this.threshold ?? 10);
 
         lines.forEach((line) => {
           line.classList.toggle("flow-active", isActive);
@@ -251,11 +250,11 @@ class PowerFlowCard extends LitElement {
     this.config = config;
   }
 
-  // Use Home Assistant's built-in form editor
-    static getConfigForm() {
+  static getConfigForm() {
     return {
       schema: [
         { name: "name", selector: { text: {} } },
+        { name: "threshold", type: "float" },
         {
           type: "grid",
           name: "entities",
@@ -273,6 +272,7 @@ class PowerFlowCard extends LitElement {
       computeLabel: (schema) => {
         const map = {
           name: "Card title",
+          threshold: "Active threshold (W)",
           "entities.solar_power": "Solar power entity",
           "entities.grid_import_power": "Grid import entity",
           "entities.grid_export_power": "Grid export entity",
@@ -292,9 +292,12 @@ class PowerFlowCard extends LitElement {
         if (config && config.entities && typeof config.entities !== "object") {
           throw new Error("entities must be an object with entity ids");
         }
+        if (config && config.threshold != null && Number.isNaN(Number(config.threshold))) {
+          throw new Error("threshold must be a number (Watts)");
+        }
       },
     };
-   }
+  }
 
   static get styles() {
     return css`
