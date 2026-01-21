@@ -308,6 +308,9 @@ class PowerFlowCard extends LitElement {
       :host {
         display: block;
       }
+      ha-card {
+        font-family: var(--primary-font-family, "Roboto", "Noto", sans-serif);
+      }
       #svg-overlay {
         position: relative;
         width: 100%;
@@ -322,6 +325,19 @@ class PowerFlowCard extends LitElement {
         display: flex;
         justify-content: center;
         align-items: center;
+      }
+      .pf-labels {
+        position: absolute;
+        top: 8px;
+        left: 12px;
+        right: 12px;
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--secondary-text-color);
+        z-index: 2;
+        pointer-events: none;
       }
 
       /* Background Styling */
@@ -396,17 +412,43 @@ class PowerFlowCard extends LitElement {
 
   // 7. HTML Template (The card structure)
   render() {
+    const title = this.config?.name?.trim();
     return html`
-      <ha-card header="${this.config.name || "Power Flow Diagram"}">
-        <div id="svg-overlay">
-          <div id="svg-container-bg"></div>
-          <div id="svg-container-solar"></div>
-          <div id="svg-container-battery"></div>
-          <div id="svg-container-ev"></div>
-          <div id="svg-container-primary"></div>
-          <div id="svg-container-out"></div>
-        </div>
-      </ha-card>
+      ${title
+        ? html`
+            <ha-card header="${title}">
+              <div id="svg-overlay">
+                <div class="pf-labels">
+                  <span>Grid</span>
+                  <span>Solar Panels</span>
+                  <span>Home</span>
+                </div>
+                <div id="svg-container-bg"></div>
+                <div id="svg-container-solar"></div>
+                <div id="svg-container-battery"></div>
+                <div id="svg-container-ev"></div>
+                <div id="svg-container-primary"></div>
+                <div id="svg-container-out"></div>
+              </div>
+            </ha-card>
+          `
+        : html`
+            <ha-card>
+              <div id="svg-overlay">
+                <div class="pf-labels">
+                  <span>Grid</span>
+                  <span>Solar Panels</span>
+                  <span>Home</span>
+                </div>
+                <div id="svg-container-bg"></div>
+                <div id="svg-container-solar"></div>
+                <div id="svg-container-battery"></div>
+                <div id="svg-container-ev"></div>
+                <div id="svg-container-primary"></div>
+                <div id="svg-container-out"></div>
+              </div>
+            </ha-card>
+          `}
     `;
   }
 }
