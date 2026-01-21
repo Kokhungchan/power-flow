@@ -31,7 +31,7 @@ class PowerFlowCard extends LitElement {
         id: "solar",
         type: "solar",
         entity_key: "solar_power",
-        reverse: true,
+        reverse: false,
         container: "solar",
       },
       {
@@ -137,18 +137,22 @@ class PowerFlowCard extends LitElement {
     gradient.setAttribute("y2", "0");
     gradient.setAttribute("spreadMethod", "repeat");
 
+    const reverseGradient = lineType === "solar";
+    const fromX = reverseGradient ? "120" : "0";
+    const toX = reverseGradient ? "0" : "120";
+
     gradient.innerHTML = `
-      <stop offset="0%" stop-color="${color}" stop-opacity="0.15"></stop>
-      <stop offset="40%" stop-color="${color}" stop-opacity="0.75"></stop>
-      <stop offset="55%" stop-color="${color}" stop-opacity="1"></stop>
-      <stop offset="70%" stop-color="${color}" stop-opacity="0.75"></stop>
-      <stop offset="100%" stop-color="${color}" stop-opacity="0.15"></stop>
+      <stop offset="0%" stop-color="${color}" stop-opacity="0.05"></stop>
+      <stop offset="45%" stop-color="${color}" stop-opacity="0.2"></stop>
+      <stop offset="70%" stop-color="${color}" stop-opacity="0.6"></stop>
+      <stop offset="85%" stop-color="${color}" stop-opacity="1"></stop>
+      <stop offset="100%" stop-color="${color}" stop-opacity="0"></stop>
       <animateTransform
         attributeName="gradientTransform"
         type="translate"
-        from="0 0"
-        to="120 0"
-        dur="3.2s"
+        from="${fromX} 0"
+        to="${toX} 0"
+        dur="3s"
         calcMode="linear"
         repeatCount="indefinite"
       />
@@ -181,6 +185,9 @@ class PowerFlowCard extends LitElement {
           return;
         }
         el.classList.add("anim-line", lineType);
+        if (lineType === "grid-import") {
+          el.classList.add("flow-dash");
+        }
         el.setAttribute("stroke", `url(#pf-flow-gradient-${lineType})`);
         el.style.setProperty(
           "stroke",
@@ -301,6 +308,12 @@ class PowerFlowCard extends LitElement {
       );
     }
     this.config = config;
+    if (config.background_svg) {
+      this.svgPaths.bg = config.background_svg;
+      if (this.isInitialized) {
+        this.loadAllSVGs();
+      }
+    }
   }
 
   getEntityStateValue(entityId, attribute) {
@@ -327,6 +340,7 @@ class PowerFlowCard extends LitElement {
       schema: [
         { name: "name", selector: { text: {} } },
         { name: "threshold", type: "float" },
+        { name: "background_svg", selector: { text: {} } },
         {
           type: "grid",
           name: "entities",
@@ -346,6 +360,7 @@ class PowerFlowCard extends LitElement {
         const map = {
           name: "Card title",
           threshold: "Active threshold (W)",
+          background_svg: "Background SVG URL (optional)",
           "entities.solar_power": "Solar power entity",
           "entities.grid_import_power": "Grid import entity",
           "entities.grid_export_power": "Grid export entity",
@@ -437,6 +452,21 @@ class PowerFlowCard extends LitElement {
         height: 50px;
         background: var(--divider-color, rgba(255, 255, 255, 0.2));
       }
+      .pf-label-grid::after {
+        background: dodgerblue;
+        opacity: 0.5;
+        height: 70px;
+      }
+      .pf-label-solar::after {
+        background: gold;
+        opacity: 0.5;
+        height: 45px;
+      }
+      .pf-label-export::after {
+        background: limegreen;
+        opacity: 0.5;
+        height: 53px;
+      }
       .pf-label-value {
         font-size: 16px;
         font-weight: 600;
@@ -470,17 +500,20 @@ class PowerFlowCard extends LitElement {
 
       /* Animated Line Styles */
       .anim-line {
-        stroke-dasharray: 40 20;
+        animation: pulse 5s ease-in-out infinite alternate;
+        filter: url(#glow);
+        stroke-width: 5px;
+      }
+      .flow-dash {
+        stroke-dasharray: 90 220;
         animation:
           dash-move 5s linear infinite,
           pulse 5s ease-in-out infinite alternate;
-        filter: url(#glow);
-        stroke-width: 5px;
         --dash-dir: -320;
       }
 
       .reverse-flow {
-        --dash-dir: 200;
+        --dash-dir: 320;
       }
 
       /* Animation State Controls */
@@ -560,15 +593,15 @@ class PowerFlowCard extends LitElement {
             <ha-card header="${title}">
               <div class="pf-wrapper">
                 <div class="pf-labels">
-                  <div class="pf-label">
+                  <div class="pf-label pf-label-grid">
                     <div class="pf-label-value">${gridText}</div>
                     <div class="pf-label-text">Grid</div>
                   </div>
-                  <div class="pf-label">
+                  <div class="pf-label pf-label-solar">
                     <div class="pf-label-value">${solarText}</div>
                     <div class="pf-label-text">Solar Panel</div>
                   </div>
-                  <div class="pf-label">
+                  <div class="pf-label pf-label-export">
                     <div class="pf-label-value">${exportText}</div>
                     <div class="pf-label-text">Export</div>
                   </div>
@@ -588,15 +621,15 @@ class PowerFlowCard extends LitElement {
             <ha-card>
               <div class="pf-wrapper">
                 <div class="pf-labels">
-                  <div class="pf-label">
+                  <div class="pf-label pf-label-grid">
                     <div class="pf-label-value">${gridText}</div>
                     <div class="pf-label-text">Grid</div>
                   </div>
-                  <div class="pf-label">
+                  <div class="pf-label pf-label-solar">
                     <div class="pf-label-value">${solarText}</div>
                     <div class="pf-label-text">Solar Panel</div>
                   </div>
-                  <div class="pf-label">
+                  <div class="pf-label pf-label-export">
                     <div class="pf-label-value">${exportText}</div>
                     <div class="pf-label-text">Export</div>
                   </div>
