@@ -116,6 +116,46 @@ class PowerFlowCard extends LitElement {
     }
   }
 
+  ensureFlowGradient(svgEl, lineType, color) {
+    const gradientId = `pf-flow-gradient-${lineType}`;
+    if (svgEl.querySelector(`#${gradientId}`)) return;
+    const defs = svgEl.querySelector("defs")
+      || svgEl.insertBefore(
+        document.createElementNS("http://www.w3.org/2000/svg", "defs"),
+        svgEl.firstChild
+      );
+
+    const gradient = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "linearGradient"
+    );
+    gradient.setAttribute("id", gradientId);
+    gradient.setAttribute("gradientUnits", "userSpaceOnUse");
+    gradient.setAttribute("x1", "0");
+    gradient.setAttribute("y1", "0");
+    gradient.setAttribute("x2", "120");
+    gradient.setAttribute("y2", "0");
+    gradient.setAttribute("spreadMethod", "repeat");
+
+    gradient.innerHTML = `
+      <stop offset="0%" stop-color="${color}" stop-opacity="0.15"></stop>
+      <stop offset="40%" stop-color="${color}" stop-opacity="0.75"></stop>
+      <stop offset="55%" stop-color="${color}" stop-opacity="1"></stop>
+      <stop offset="70%" stop-color="${color}" stop-opacity="0.75"></stop>
+      <stop offset="100%" stop-color="${color}" stop-opacity="0.15"></stop>
+      <animateTransform
+        attributeName="gradientTransform"
+        type="translate"
+        from="0 0"
+        to="120 0"
+        dur="3.2s"
+        calcMode="linear"
+        repeatCount="indefinite"
+      />
+    `;
+    defs.appendChild(gradient);
+  }
+
   processSVGString(text, containerEl, lineType) {
     containerEl.innerHTML = text;
     const svgEl = containerEl.querySelector("svg");
@@ -132,6 +172,7 @@ class PowerFlowCard extends LitElement {
     };
 
     const desiredColor = colorMap[lineType] || "red";
+    this.ensureFlowGradient(svgEl, lineType, desiredColor);
 
     svgEl
       .querySelectorAll("path, circle, rect, line, polyline, polygon")
@@ -140,8 +181,13 @@ class PowerFlowCard extends LitElement {
           return;
         }
         el.classList.add("anim-line", lineType);
-        el.setAttribute("stroke", desiredColor);
-        el.style.setProperty("stroke", desiredColor, "important");
+        el.setAttribute("stroke", `url(#pf-flow-gradient-${lineType})`);
+        el.style.setProperty(
+          "stroke",
+          `url(#pf-flow-gradient-${lineType})`,
+          "important"
+        );
+        el.style.setProperty("stroke-linecap", "round", "important");
         el.classList.add("flow-off");
       });
   }
@@ -227,10 +273,14 @@ class PowerFlowCard extends LitElement {
             value = 0;
           }
         } else {
-
-          const entityId = this.config.entities[cfg.entity_key];
-          const stateObj = entityId ? this._hass.states[entityId] : null;
-          value = stateObj ? parseFloat(stateObj.state) : 0;
+          if (cfg.entity_key === "grid_import_power" && this.config.entities?.grid_import_daily) {
+            const daily = this.getEntityStateValue(this.config.entities.grid_import_daily, "last_period");
+            value = daily?.value ?? 0;
+          } else {
+            const entityId = this.config.entities[cfg.entity_key];
+            const stateObj = entityId ? this._hass.states[entityId] : null;
+            value = stateObj ? parseFloat(stateObj.state) : 0;
+          }
         }
 
         const lines = container.querySelectorAll(".anim-line");
@@ -253,6 +303,25 @@ class PowerFlowCard extends LitElement {
     this.config = config;
   }
 
+  getEntityStateValue(entityId, attribute) {
+    if (!this._hass || !entityId) return null;
+    const stateObj = this._hass.states[entityId];
+    if (!stateObj) return null;
+    const rawValue = attribute
+      ? Number(stateObj.attributes?.[attribute])
+      : Number(stateObj.state);
+    if (!Number.isFinite(rawValue)) return null;
+    const unit = stateObj.attributes?.unit_of_measurement || "";
+    return { value: rawValue, unit };
+  }
+
+  formatValue(value, unit) {
+    if (!Number.isFinite(value)) return "—";
+    const rounded = Math.round(value * 10) / 10;
+    const text = Number.isInteger(rounded) ? `${rounded}` : `${rounded}`;
+    return unit ? `${text} ${unit}` : text;
+  }
+
   static getConfigForm() {
     return {
       schema: [
@@ -266,6 +335,7 @@ class PowerFlowCard extends LitElement {
             { name: "solar_power", selector: { entity: {} } },
             { name: "grid_import_power", selector: { entity: {} } },
             { name: "grid_export_power", selector: { entity: {} } },
+            { name: "grid_import_daily", selector: { entity: {} } },
             { name: "ev_charge_power", selector: { entity: {} } },
             { name: "battery_charge_power", selector: { entity: {} } },
             { name: "battery_discharge_power", selector: { entity: {} } },
@@ -279,12 +349,14 @@ class PowerFlowCard extends LitElement {
           "entities.solar_power": "Solar power entity",
           "entities.grid_import_power": "Grid import entity",
           "entities.grid_export_power": "Grid export entity",
+          "entities.grid_import_daily": "Grid import daily entity",
           "entities.ev_charge_power": "EV charge entity",
           "entities.battery_charge_power": "Battery charge entity",
           "entities.battery_discharge_power": "Battery discharge entity",
           solar_power: "Solar power entity",
           grid_import_power: "Grid import entity",
           grid_export_power: "Grid export entity",
+          grid_import_daily: "Grid import daily entity",
           ev_charge_power: "EV charge entity",
           battery_charge_power: "Battery charge entity",
           battery_discharge_power: "Battery discharge entity",
@@ -308,15 +380,19 @@ class PowerFlowCard extends LitElement {
       :host {
         display: block;
       }
-      ha-card {
-        font-family: var(--primary-font-family, "Roboto", "Noto", sans-serif);
+      .pf-wrapper {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding-top: 36px;
       }
       #svg-overlay {
         position: relative;
         width: 100%;
-        height: 350px;
+        height: 280px;
         pointer-events: none;
-        padding: 16px;
+        padding: 28px 16px 4px;
         box-sizing: border-box;
       }
       #svg-overlay > div {
@@ -328,16 +404,58 @@ class PowerFlowCard extends LitElement {
       }
       .pf-labels {
         position: absolute;
-        top: 8px;
-        left: 12px;
-        right: 12px;
-        display: flex;
-        justify-content: space-between;
+        top: 20px;
+        left: 0;
+        right: 0;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        align-items: start;
+        padding: 0 24px;
         font-size: 12px;
         font-weight: 500;
         color: var(--secondary-text-color);
         z-index: 2;
         pointer-events: none;
+      }
+      .pf-label {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        text-align: center;
+        min-width: 0;
+        padding-bottom: 58px;
+      }
+      .pf-label::after {
+        content: "";
+        position: absolute;
+        top: 38px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 1px;
+        height: 50px;
+        background: var(--divider-color, rgba(255, 255, 255, 0.2));
+      }
+      .pf-label-value {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--primary-text-color);
+        line-height: 1;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .pf-label-text {
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--secondary-text-color);
+        line-height: 1;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       /* Background Styling */
@@ -347,13 +465,13 @@ class PowerFlowCard extends LitElement {
 
       /* Animated Line Styles */
       .anim-line {
-        stroke-dasharray: 20 15;
+        stroke-dasharray: 40 20;
         animation:
-          dash-move 6s linear infinite,
+          dash-move 5s linear infinite,
           pulse 5s ease-in-out infinite alternate;
         filter: url(#glow);
         stroke-width: 5px;
-        --dash-dir: -200;
+        --dash-dir: -320;
       }
 
       .reverse-flow {
@@ -413,39 +531,76 @@ class PowerFlowCard extends LitElement {
   // 7. HTML Template (The card structure)
   render() {
     const title = this.config?.name?.trim();
+    const gridImportDaily = this.getEntityStateValue(
+      this.config?.entities?.grid_import_daily,
+      "last_period"
+    );
+    const gridImport = this.getEntityStateValue(this.config?.entities?.grid_import_power);
+    const gridExport = this.getEntityStateValue(this.config?.entities?.grid_export_power);
+    const gridValue = gridImportDaily?.value ?? ((gridImport || gridExport)
+      ? Math.abs((gridImport?.value ?? 0) - (gridExport?.value ?? 0))
+      : null);
+    const gridUnit = gridImportDaily?.unit || gridImport?.unit || gridExport?.unit || "";
+    const solar = this.getEntityStateValue(this.config?.entities?.solar_power);
+    const exportState = this.getEntityStateValue(this.config?.entities?.grid_export_power);
+    const gridText = this.formatValue(gridValue, gridUnit);
+    const solarText = this.formatValue(solar?.value, solar?.unit);
+    const exportText = this.formatValue(exportState?.value, exportState?.unit);
     return html`
       ${title
         ? html`
             <ha-card header="${title}">
-              <div id="svg-overlay">
+              <div class="pf-wrapper">
                 <div class="pf-labels">
-                  <span>Grid</span>
-                  <span>Solar Panels</span>
-                  <span>Home</span>
+                  <div class="pf-label">
+                    <div class="pf-label-value">${gridText}</div>
+                    <div class="pf-label-text">Grid</div>
+                  </div>
+                  <div class="pf-label">
+                    <div class="pf-label-value">${solarText}</div>
+                    <div class="pf-label-text">Solar Panel</div>
+                  </div>
+                  <div class="pf-label">
+                    <div class="pf-label-value">${exportText}</div>
+                    <div class="pf-label-text">Export</div>
+                  </div>
                 </div>
-                <div id="svg-container-bg"></div>
-                <div id="svg-container-solar"></div>
-                <div id="svg-container-battery"></div>
-                <div id="svg-container-ev"></div>
-                <div id="svg-container-primary"></div>
-                <div id="svg-container-out"></div>
+                <div id="svg-overlay">
+                  <div id="svg-container-bg"></div>
+                  <div id="svg-container-solar"></div>
+                  <div id="svg-container-battery"></div>
+                  <div id="svg-container-ev"></div>
+                  <div id="svg-container-primary"></div>
+                  <div id="svg-container-out"></div>
+                </div>
               </div>
             </ha-card>
           `
         : html`
             <ha-card>
-              <div id="svg-overlay">
+              <div class="pf-wrapper">
                 <div class="pf-labels">
-                  <span>Grid</span>
-                  <span>Solar Panels</span>
-                  <span>Home</span>
+                  <div class="pf-label">
+                    <div class="pf-label-value">${gridText}</div>
+                    <div class="pf-label-text">Grid</div>
+                  </div>
+                  <div class="pf-label">
+                    <div class="pf-label-value">${solarText}</div>
+                    <div class="pf-label-text">Solar Panel</div>
+                  </div>
+                  <div class="pf-label">
+                    <div class="pf-label-value">${exportText}</div>
+                    <div class="pf-label-text">Export</div>
+                  </div>
                 </div>
-                <div id="svg-container-bg"></div>
-                <div id="svg-container-solar"></div>
-                <div id="svg-container-battery"></div>
-                <div id="svg-container-ev"></div>
-                <div id="svg-container-primary"></div>
-                <div id="svg-container-out"></div>
+                <div id="svg-overlay">
+                  <div id="svg-container-bg"></div>
+                  <div id="svg-container-solar"></div>
+                  <div id="svg-container-battery"></div>
+                  <div id="svg-container-ev"></div>
+                  <div id="svg-container-primary"></div>
+                  <div id="svg-container-out"></div>
+                </div>
               </div>
             </ha-card>
           `}
