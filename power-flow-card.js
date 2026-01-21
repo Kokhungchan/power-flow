@@ -336,9 +336,9 @@ class PowerFlowCard extends LitElement {
             { name: "grid_import_power", selector: { entity: {} } },
             { name: "grid_export_power", selector: { entity: {} } },
             { name: "grid_import_daily", selector: { entity: {} } },
-            { name: "ev_charge_power", selector: { entity: {} } },
-            { name: "battery_charge_power", selector: { entity: {} } },
-            { name: "battery_discharge_power", selector: { entity: {} } },
+            { name: "ev_charge_power", selector: { entity: {} }, required: false },
+            { name: "battery_charge_power", selector: { entity: {} }, required: false },
+            { name: "battery_discharge_power", selector: { entity: {} }, required: false },
           ],
         },
       ],
@@ -457,6 +457,11 @@ class PowerFlowCard extends LitElement {
         text-overflow: ellipsis;
         white-space: nowrap;
       }
+      .pf-loading {
+        padding: 16px;
+        color: var(--secondary-text-color);
+        text-align: center;
+      }
 
       /* Background Styling */
       #svg-container-bg svg {
@@ -530,6 +535,9 @@ class PowerFlowCard extends LitElement {
 
   // 7. HTML Template (The card structure)
   render() {
+    if (!this.config || !this.config.entities) {
+      return html`<ha-card><div class="pf-loading">Loading…</div></ha-card>`;
+    }
     const title = this.config?.name?.trim();
     const gridImportDaily = this.getEntityStateValue(
       this.config?.entities?.grid_import_daily,
