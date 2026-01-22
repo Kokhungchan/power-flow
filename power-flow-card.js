@@ -31,7 +31,7 @@ class PowerFlowCard extends LitElement {
         id: "solar",
         type: "solar",
         entity_key: "solar_power",
-        reverse: false,
+        reverse: true,
         container: "solar",
       },
       {
@@ -142,11 +142,11 @@ class PowerFlowCard extends LitElement {
     const toX = reverseGradient ? "0" : "120";
 
     gradient.innerHTML = `
-      <stop offset="0%" stop-color="${color}" stop-opacity="0.05"></stop>
-      <stop offset="45%" stop-color="${color}" stop-opacity="0.2"></stop>
-      <stop offset="70%" stop-color="${color}" stop-opacity="0.6"></stop>
-      <stop offset="85%" stop-color="${color}" stop-opacity="1"></stop>
-      <stop offset="100%" stop-color="${color}" stop-opacity="0"></stop>
+      <stop offset="0%" stop-color="${color}" stop-opacity="0.35"></stop>
+      <stop offset="30%" stop-color="${color}" stop-opacity="0.55"></stop>
+      <stop offset="60%" stop-color="${color}" stop-opacity="0.8"></stop>
+      <stop offset="80%" stop-color="${color}" stop-opacity="0.55"></stop>
+      <stop offset="100%" stop-color="${color}" stop-opacity="0.35"></stop>
       <animateTransform
         attributeName="gradientTransform"
         type="translate"
@@ -176,7 +176,6 @@ class PowerFlowCard extends LitElement {
     };
 
     const desiredColor = colorMap[lineType] || "red";
-    this.ensureFlowGradient(svgEl, lineType, desiredColor);
 
     svgEl
       .querySelectorAll("path, circle, rect, line, polyline, polygon")
@@ -184,16 +183,9 @@ class PowerFlowCard extends LitElement {
         if (el.nodeName === "rect") {
           return;
         }
-        el.classList.add("anim-line", lineType);
-        if (lineType === "grid-import") {
-          el.classList.add("flow-dash");
-        }
-        el.setAttribute("stroke", `url(#pf-flow-gradient-${lineType})`);
-        el.style.setProperty(
-          "stroke",
-          `url(#pf-flow-gradient-${lineType})`,
-          "important"
-        );
+        el.classList.add("anim-line", lineType, "flow-stream");
+        el.setAttribute("stroke", desiredColor);
+        el.style.setProperty("stroke", desiredColor, "important");
         el.style.setProperty("stroke-linecap", "round", "important");
         el.classList.add("flow-off");
       });
@@ -250,6 +242,9 @@ class PowerFlowCard extends LitElement {
     const threshold = (this.config && this.config.threshold != null)
       ? (Number(this.config.threshold) || 10)
       : 10;
+    const minDuration = 2.2;
+    const maxDuration = 7.0;
+    const speedScale = 7; // higher means slower change with value
     this.lineConfig
       .filter((c) => c.entity_key)
       .forEach((cfg) => {
@@ -292,11 +287,14 @@ class PowerFlowCard extends LitElement {
 
         const lines = container.querySelectorAll(".anim-line");
         const isActive = Math.abs(value) > threshold;
+        const normalized = Math.min(Math.abs(value) / (threshold * speedScale), 1);
+        const duration = maxDuration - (maxDuration - minDuration) * normalized;
 
         lines.forEach((line) => {
           line.classList.toggle("flow-active", isActive);
           line.classList.toggle("flow-off", !isActive);
           line.classList.toggle("reverse-flow", reverse);
+          line.style.setProperty("--flow-duration", `${duration}s`);
         });
       });
   }
@@ -500,20 +498,19 @@ class PowerFlowCard extends LitElement {
 
       /* Animated Line Styles */
       .anim-line {
-        animation: pulse 5s ease-in-out infinite alternate;
         filter: url(#glow);
         stroke-width: 5px;
       }
-      .flow-dash {
-        stroke-dasharray: 90 220;
-        animation:
-          dash-move 5s linear infinite,
-          pulse 5s ease-in-out infinite alternate;
-        --dash-dir: -320;
+      .flow-stream {
+        stroke-dasharray: 80 200;
+        animation: dash-move var(--flow-duration, 4.8s) linear infinite;
+        --dash-dir: -280;
+        stroke-linecap: round;
+        stroke-opacity: 0.95;
       }
 
       .reverse-flow {
-        --dash-dir: 320;
+        --dash-dir: 280;
       }
 
       /* Animation State Controls */
@@ -534,16 +531,16 @@ class PowerFlowCard extends LitElement {
 
       @keyframes pulse {
         0% {
-          stroke-opacity: 0.6;
-          filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+          stroke-opacity: 0.7;
+          filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.2));
         }
         50% {
           stroke-opacity: 1;
-          filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.3));
+          filter: drop-shadow(0 0 16px rgba(255, 255, 255, 0.5));
         }
         100% {
-          stroke-opacity: 0.6;
-          filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+          stroke-opacity: 0.7;
+          filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.2));
         }
       }
 
