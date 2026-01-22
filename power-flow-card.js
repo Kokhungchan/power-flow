@@ -87,6 +87,7 @@ class PowerFlowCard extends LitElement {
       primary: this.shadowRoot.getElementById("svg-container-primary"),
       out: this.shadowRoot.getElementById("svg-container-out"),
     };
+    this.foregroundContainer = this.shadowRoot.getElementById("svg-container-fg");
     this.loadAllSVGs();
     this.isInitialized = true;
   }
@@ -208,6 +209,25 @@ class PowerFlowCard extends LitElement {
 
       if (isBackground) {
         containerEl.innerHTML = text;
+        const bgSvg = containerEl.querySelector("svg");
+        if (bgSvg && this.foregroundContainer) {
+          const inverter = bgSvg.querySelector("#inverter");
+          if (inverter) {
+            const fgSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            const viewBox = bgSvg.getAttribute("viewBox");
+            if (viewBox) {
+              fgSvg.setAttribute("viewBox", viewBox);
+            }
+            fgSvg.setAttribute("width", "100%");
+            fgSvg.setAttribute("height", "100%");
+            fgSvg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+            fgSvg.appendChild(inverter.cloneNode(true));
+            this.foregroundContainer.innerHTML = "";
+            this.foregroundContainer.appendChild(fgSvg);
+          } else {
+            this.foregroundContainer.innerHTML = "";
+          }
+        }
       } else {
         this.processSVGString(text, containerEl, lineType);
       }
@@ -254,10 +274,12 @@ class PowerFlowCard extends LitElement {
 
         let value = 0;
         let reverse = !!cfg.reverse;
+        let hasEntity = true;
 
         if (cfg.type === "bat-charge") {
           const chargeEntity = this.config.entities["battery_charge_power"];
           const dischargeEntity = this.config.entities["battery_discharge_power"];
+          hasEntity = !!(chargeEntity || dischargeEntity);
 
           const chargeState = chargeEntity ? this._hass.states[chargeEntity] : null;
           const dischargeState = dischargeEntity ? this._hass.states[dischargeEntity] : null;
@@ -278,8 +300,10 @@ class PowerFlowCard extends LitElement {
           if (cfg.entity_key === "grid_import_power" && this.config.entities?.grid_import_daily) {
             const daily = this.getEntityStateValue(this.config.entities.grid_import_daily, "last_period");
             value = daily?.value ?? 0;
+            hasEntity = !!this.config.entities.grid_import_daily;
           } else {
             const entityId = this.config.entities[cfg.entity_key];
+            hasEntity = !!entityId;
             const stateObj = entityId ? this._hass.states[entityId] : null;
             value = stateObj ? parseFloat(stateObj.state) : 0;
           }
@@ -294,6 +318,7 @@ class PowerFlowCard extends LitElement {
           line.classList.toggle("flow-active", isActive);
           line.classList.toggle("flow-off", !isActive);
           line.classList.toggle("reverse-flow", reverse);
+          line.classList.toggle("flow-hidden", !hasEntity);
           line.style.setProperty("--flow-duration", `${duration}s`);
         });
       });
@@ -415,6 +440,15 @@ class PowerFlowCard extends LitElement {
         justify-content: center;
         align-items: center;
       }
+      #svg-container-fg {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        pointer-events: none;
+        z-index: 3;
+      }
       .pf-labels {
         position: absolute;
         top: 20px;
@@ -522,6 +556,10 @@ class PowerFlowCard extends LitElement {
         animation-play-state: paused !important;
         opacity: 0.15 !important;
       }
+      .flow-hidden {
+        animation-play-state: paused !important;
+        opacity: 0 !important;
+      }
 
       @keyframes dash-move {
         to {
@@ -608,8 +646,9 @@ class PowerFlowCard extends LitElement {
                   <div id="svg-container-solar"></div>
                   <div id="svg-container-battery"></div>
                   <div id="svg-container-ev"></div>
-                  <div id="svg-container-primary"></div>
-                  <div id="svg-container-out"></div>
+                <div id="svg-container-primary"></div>
+                <div id="svg-container-out"></div>
+                <div id="svg-container-fg"></div>
                 </div>
               </div>
             </ha-card>
@@ -638,6 +677,7 @@ class PowerFlowCard extends LitElement {
                   <div id="svg-container-ev"></div>
                   <div id="svg-container-primary"></div>
                   <div id="svg-container-out"></div>
+                  <div id="svg-container-fg"></div>
                 </div>
               </div>
             </ha-card>
