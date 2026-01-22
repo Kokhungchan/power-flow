@@ -254,10 +254,12 @@ class PowerFlowCard extends LitElement {
 
         let value = 0;
         let reverse = !!cfg.reverse;
+        let hasEntity = true;
 
         if (cfg.type === "bat-charge") {
           const chargeEntity = this.config.entities["battery_charge_power"];
           const dischargeEntity = this.config.entities["battery_discharge_power"];
+          hasEntity = !!(chargeEntity || dischargeEntity);
 
           const chargeState = chargeEntity ? this._hass.states[chargeEntity] : null;
           const dischargeState = dischargeEntity ? this._hass.states[dischargeEntity] : null;
@@ -278,8 +280,10 @@ class PowerFlowCard extends LitElement {
           if (cfg.entity_key === "grid_import_power" && this.config.entities?.grid_import_daily) {
             const daily = this.getEntityStateValue(this.config.entities.grid_import_daily, "last_period");
             value = daily?.value ?? 0;
+            hasEntity = !!this.config.entities.grid_import_daily;
           } else {
             const entityId = this.config.entities[cfg.entity_key];
+            hasEntity = !!entityId;
             const stateObj = entityId ? this._hass.states[entityId] : null;
             value = stateObj ? parseFloat(stateObj.state) : 0;
           }
@@ -294,6 +298,7 @@ class PowerFlowCard extends LitElement {
           line.classList.toggle("flow-active", isActive);
           line.classList.toggle("flow-off", !isActive);
           line.classList.toggle("reverse-flow", reverse);
+          line.classList.toggle("flow-hidden", !hasEntity);
           line.style.setProperty("--flow-duration", `${duration}s`);
         });
       });
@@ -521,6 +526,10 @@ class PowerFlowCard extends LitElement {
       .flow-off {
         animation-play-state: paused !important;
         opacity: 0.15 !important;
+      }
+      .flow-hidden {
+        animation-play-state: paused !important;
+        opacity: 0 !important;
       }
 
       @keyframes dash-move {
